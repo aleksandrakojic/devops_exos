@@ -1,0 +1,164 @@
+# playbooks/web-setup.yml
+---
+- name: Complete Web Server Setup and Configuration
+  hosts: webservers
+  become: yes
+  gather_facts: yes
+  vars:
+    ansible_env: "{{ env | default('development') }}"
+
+  pre_tasks:
+    - name: Update package cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Update package cache (RedHat/CentOS)
+      yum:
+        update_cache: yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Install required packages
+      package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - curl
+        - wget
+        - unzip
+        - openssl
+        - ca-certificates
+
+  tasks:
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        system: yes
+        shell: /bin/false
+        home: "{{ app_directory }}"
+        create_home: yes
+
+    - name: Install Nginx
+      package:
+        name: nginx
+        state: present
+
+    - name: Ensure Nginx service is enabled
+      systemd:
+        name: nginx
+        enabled: yes
+
+    - name: Create SSL directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop:
+        - "{{ ssl_cert_path }}"
+        - "{{ ssl_key_path }}"
+
+    - name: Generate self-signed SSL certificate (for demo)
+      command: >
+        openssl req -new -nodes -x509
+        -subj "/C=US/ST=CA/L=San Francisco/O=IT/CN={{ server_name }}"
+        -days 365
+        -keyout {{ ssl_key_path }}/{{ ssl_key_file }}
+        -out {{ ssl_cert_path }}/{{ ssl_cert_file }}
+      args:
+        creates: "{{ ssl_cert_path }}/{{ ssl_cert_file }}"
+
+    - name: Set SSL certificate permissions
+      file:
+        path: "{{ item.path }}"
+        mode: "{{ item.mode }}"
+        owner: root
+        group: root
+      loop:
+        - { path: "{{ ssl_cert_path }}/{{ ssl_cert_file }}", mode: '0644' }
+        - { path: "{{ ssl_key_path }}/{{ ssl_key_file }}", mode: '0600' }
+
+    - name: Create document root directory
+      file:
+        path: "{{ document_root }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+
+    - name: Deploy Nginx configuration
+      template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        backup: yes
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart nginx
+
+    - name: Create sample index page
+      template:
+        src: index.html.j2
+        dest: "{{ document_root }}/index.html"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+
+    - name: Configure UFW firewall
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop: "{{ firewall_allowed_ports }}"
+      when: ansible_os_family == "Debian"
+
+    - name: Enable UFW firewall
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+      when: ansible_os_family == "Debian"
+
+    - name: Validate Nginx configuration
+      command: nginx -t
+      register: nginx_syntax
+      changed_when: false
+      failed_when: nginx_syntax.rc != 0
+
+    - name: Start and enable Nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+  post_tasks:
+    - name: Verify web server is responding
+      uri:
+        url: "https://{{ server_name }}"
+        method: GET
+        validate_certs: no
+        timeout: 10
+      delegate_to: localhost
+      register: web_response
+      failed_when: web_response.status != 200
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          =================================
+          Web Server Deployment Complete!
+          =================================
+          Server: {{ inventory_hostname }}
+          URL: https://{{ server_name }}
+          SSL: Enabled (self-signed)
+          Status: {{ web_response.status }}
+          =================================

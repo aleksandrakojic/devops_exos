@@ -1,0 +1,41 @@
+# group_vars/webservers.yml
+---
+nginx_version: latest
+nginx_user: www-data
+nginx_worker_processes: auto
+nginx_worker_connections: 1024
+nginx_keepalive_timeout: 65
+nginx_client_max_body_size: 100M
+
+# SSL Configuration
+ssl_cert_path: /etc/ssl/certs
+ssl_key_path: /etc/ssl/private
+ssl_cert_file: "{{ server_name }}.crt"
+ssl_key_file: "{{ server_name }}.key"
+
+# Security settings
+firewall_allowed_ports:
+  - 22
+  - 80
+  - 443
+
+# Application settings
+app_user: webuser
+app_group: webuser
+app_directory: /var/www/html
+document_root: "{{ app_directory }}"
+
+# Environment-specific overrides
+environments:
+  production:
+    nginx_worker_processes: 4
+    ssl_protocols: "TLSv1.2 TLSv1.3"
+    error_log_level: warn
+  staging:
+    nginx_worker_processes: 2
+    ssl_protocols: "TLSv1.2 TLSv1.3"
+    error_log_level: info
+  development:
+    nginx_worker_processes: 1
+    ssl_protocols: "TLSv1.2 TLSv1.3"
+    error_log_level: debug

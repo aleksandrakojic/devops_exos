@@ -1,0 +1,110 @@
+# templates/nginx.conf.j2
+user {{ nginx_user }};
+worker_processes {{ nginx_worker_processes }};
+pid /run/nginx.pid;
+
+events {
+    worker_connections {{ nginx_worker_connections }};
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    # Basic Settings
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout {{ nginx_keepalive_timeout }};
+    types_hash_max_size 2048;
+    client_max_body_size {{ nginx_client_max_body_size }};
+    server_tokens off;
+
+    # MIME Types
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # SSL Settings
+    ssl_protocols {{ environments[ansible_env].ssl_protocols | default('TLSv1.2 TLSv1.3') }};
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # Logging
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+    error_log /var/log/nginx/error.log {{ environments[ansible_env].error_log_level | default('warn') }};
+
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+
+    # Security Headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+
+    # Default server configuration
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name {{ server_name }};
+        
+        # Redirect HTTP to HTTPS
+        location / {
+            return 301 https://$server_name$request_uri;
+        }
+        
+        # Let's Encrypt challenge
+        location /.well-known/acme-challenge/ {
+            root {{ document_root }};
+        }
+    }
+
+    # HTTPS server configuration
+    server {
+        listen 443 ssl http2;
+        listen [::]:443 ssl http2;
+        server_name {{ server_name }};
+
+        # SSL Certificate
+        ssl_certificate {{ ssl_cert_path }}/{{ ssl_cert_file }};
+        ssl_certificate_key {{ ssl_key_path }}/{{ ssl_key_file }};
+
+        # Document root
+        root {{ document_root }};
+        index index.html index.htm index.php;
+
+        # Security headers for HTTPS
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        # Main location block
+        location / {
+            try_files $uri $uri/ =404;
+        }
+
+        # PHP-FPM configuration (if needed)
+        location ~ \.php$ {
+            include snippets/fastcgi-php.conf;
+            fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+        }
+
+        # Static file caching
+        location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Deny access to hidden files
+        location ~ /\. {
+            deny all;
+        }
+    }
+}
