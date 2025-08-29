@@ -1,0 +1,27 @@
+# Dockerfile.production
+# Build stage
+FROM node:16-alpine AS dependencies
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# Build stage
+FROM node:16-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build 2>/dev/null || echo "No build script found"
+
+# Production stage with distroless
+FROM gcr.io/distroless/nodejs16-debian11 AS production
+WORKDIR /app
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=build /app/app.js ./
+COPY --from=build /app/package.json ./
+USER 1001
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD ["node", "-e", "require('http').get('http://localhost:3000/', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+CMD ["app.js"]
+
