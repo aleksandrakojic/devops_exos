@@ -1,0 +1,58 @@
+# values.yaml - Configuration values
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.21"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: webapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: webapp-tls
+      hosts:
+        - webapp.example.com
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+configMap:
+  enabled: true
+  data:
+    nginx.conf: |
+      events { worker_connections 1024; }
+      http {
+        server {
+          listen 80;
+          location / {
+            return 200 'Hello from Helm Chart!';
+            add_header Content-Type text/plain;
+          }
+        }
+      }
+
