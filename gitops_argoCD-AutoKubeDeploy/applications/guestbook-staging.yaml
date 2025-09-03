@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook-staging
+  namespace: argocd
+  labels:
+    environment: staging
+spec:
+  project: guestbook
+  source:
+    repoURL: https://github.com/your-username/gitops-demo
+    targetRevision: HEAD
+    path: appconfigs/guestbook/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook-staging
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true

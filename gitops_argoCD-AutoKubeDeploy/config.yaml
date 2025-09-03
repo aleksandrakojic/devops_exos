@@ -1,0 +1,32 @@
+api:
+  slack:
+    token: $slack-token
+subscriptions:
+  - recipients:
+    - slack:devops-alerts
+    triggers:
+    - on-sync-failed
+    - on-sync-succeeded
+    - on-health-degraded
+templates:
+  template.app-sync-succeeded: |
+    email:
+      subject: Application {{.app.metadata.name}} synced successfully
+    message: |
+      Application {{.app.metadata.name}} is now running new version.
+      Repository: {{.app.spec.source.repoURL}}
+      Revision: {{.app.status.sync.revision}}
+  template.app-sync-failed: |
+    email:
+      subject: Failed to sync application {{.app.metadata.name}}
+    message: |
+      The sync operation of application {{.app.metadata.name}} has failed.
+      Repository: {{.app.spec.source.repoURL}}
+      Error: {{.app.status.operationState.message}}
+triggers:
+  trigger.on-sync-succeeded: |
+    - when: app.status.sync.status == "Synced"
+      send: [app-sync-succeeded]
+  trigger.on-sync-failed: |
+    - when: app.status.sync.status == "Failed"
+      send: [app-sync-failed]
