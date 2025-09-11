@@ -1,0 +1,41 @@
+version: '3'
+services:
+  consul:
+    build: ./consul
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+
+  service_a:
+    build: ./service_a
+    depends_on:
+      - consul
+    environment:
+      - SERVICE_NAME=ServiceA
+    ports:
+      - "5001:5001"
+
+  service_b:
+    build: ./service_b
+    depends_on:
+      - consul
+    environment:
+      - SERVICE_NAME=ServiceB
+    ports:
+      - "5002:5002"
+
+  service_c:
+    build: ./service_c
+    depends_on:
+      - consul
+    environment:
+      - SERVICE_NAME=ServiceC
+    ports:
+      - "5003:5003"
+
+  api_gateway:
+    build: ./api_gateway
+    depends_on:
+      - consul
+    ports:
+      - "8000:8000"
