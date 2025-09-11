@@ -1,0 +1,35 @@
+---
+- name: Clone the repository
+  git:
+    repo: 'https://github.com/yourusername/your-nodejs-repo.git'
+    dest: /opt/nodeapp
+    version: main
+  tags: app
+
+- name: Install Node.js and npm
+  apt:
+    name:
+      - nodejs
+      - npm
+    update_cache: yes
+    state: present
+
+- name: Install app dependencies
+  npm:
+    path: /opt/nodeapp
+    state: present
+
+- name: Stop existing node process (if any)
+  shell: pgrep -f "node app.js" | xargs -r kill -9
+
+- name: Start the Node.js app
+  shell: |
+    nohup npm start > /var/log/nodeapp.log 2>&1 &
+  args:
+    chdir: /opt/nodeapp
+
+- name: Allow port 80 through UFW
+  ufw:
+    rule: allow
+    port: 80
+    proto: tcp

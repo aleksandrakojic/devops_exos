@@ -1,0 +1,20 @@
+---
+- name: Upload website tarball
+  copy:
+    src: website.tar.gz
+    dest: /tmp/website.tar.gz
+  tags: app
+
+- name: Clone website repository from GitHub
+  git:
+    repo: 'https://github.com/yourusername/yourwebsite.git'
+    dest: /var/www/html/mywebsite
+    version: main
+  tags: app
+
+- name: Set permissions
+  file:
+    path: /var/www/html/mywebsite
+    recurse: yes
+    owner: www-data
+    group: www-data

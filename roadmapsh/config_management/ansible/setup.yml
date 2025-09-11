@@ -1,0 +1,10 @@
+---
+- hosts: servers
+  become: yes
+  vars:
+    # Add any global variables here
+  roles:
+    - base
+    - nginx
+    - app
+    - ssh

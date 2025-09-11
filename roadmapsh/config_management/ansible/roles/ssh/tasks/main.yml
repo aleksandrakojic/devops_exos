@@ -1,0 +1,7 @@
+---
+- name: Add SSH public key for access
+  authorized_key:
+    user: your_username
+    state: present
+    key: "{{ lookup('file', 'files/your_public_key.pub') }}"
+  tags: ssh

@@ -1,0 +1,14 @@
+{
+  "name": "node-service",
+  "version": "1.0.0",
+  "description": "Simple Node.js service with protected route",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "basic-auth": "^2.0.0",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2"
+  }
+}

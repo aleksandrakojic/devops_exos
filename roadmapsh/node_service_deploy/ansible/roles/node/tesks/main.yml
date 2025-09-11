@@ -1,0 +1,52 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    repo_url: 'https://github.com/yourusername/your-nodejs-repo.git'  # Replace with your repo
+    app_directory: /opt/nodeapp
+
+  tasks:
+    - name: Ensure apt cache is up to date
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - git
+          - nodejs
+          - npm
+          - ufw
+        state: present
+
+    - name: Clone the project repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_directory }}"
+        version: main
+        force: yes
+
+    - name: Install Node.js dependencies
+      npm:
+        path: "{{ app_directory }}"
+        state: present
+
+    - name: Kill existing Node.js process (if any)
+      shell: pgrep -f "node app.js" | xargs -r kill -9
+
+    - name: Start the Node.js app
+      shell: >
+        nohup npm start > /var/log/nodeapp.log 2>&1 &
+      args:
+        chdir: "{{ app_directory }}"
+
+    - name: Allow port 80 through UFW
+      ufw:
+        rule: allow
+        port: 80
+        proto: tcp
+      notify: reload ufw
+
+  handlers:
+    - name: reload ufw
+      command: ufw reload
