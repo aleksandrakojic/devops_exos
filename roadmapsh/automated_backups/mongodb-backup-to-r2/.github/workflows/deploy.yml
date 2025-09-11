@@ -1,0 +1,42 @@
+name: MongoDB Backup to Cloudflare R2
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'  # every 12 hours
+  workflow_dispatch:       # manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install MongoDB tools
+      run: sudo apt-get install -y mongodb-clients
+
+    - name: Install AWS CLI
+      run: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+
+    - name: Configure AWS CLI for R2
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY }}
+        aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_KEY }}
+        aws configure set region auto
+        aws configure set r2.endpoint_url https://<account_id>.r2.cloudflarestorage.com
+
+    - name: Run backup script
+      env:
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_PORT: ${{ secrets.DB_PORT }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        R2_ENDPOINT: https://<account_id>.r2.cloudflarestorage.com
+        AWS_PROFILE: r2
+      run: |
+        chmod +x ./scripts/backup.sh
+        ./scripts/backup.sh

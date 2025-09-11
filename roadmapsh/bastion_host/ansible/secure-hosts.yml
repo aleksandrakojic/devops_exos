@@ -1,0 +1,53 @@
+---
+- hosts: all
+  become: yes
+
+  tasks:
+    - name: Update apt cache (Debian/Ubuntu) or yum cache (Amazon Linux)
+      apt:
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Update yum cache (Amazon Linux)
+      yum:
+        update_cache: yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Install Fail2Ban
+      apt:
+        name: fail2ban
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Fail2Ban
+      yum:
+        name: fail2ban
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Enable and start Fail2Ban
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    - name: Disable SSH password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        backup: yes
+
+    - name: Disable root login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        backup: yes
+
+    - name: Restart SSH service
+      service:
+        name: sshd
+        state: restarted
+
+    # Additional security hardening can be added here
