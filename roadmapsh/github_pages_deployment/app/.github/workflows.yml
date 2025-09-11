@@ -1,0 +1,27 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'index.html'  # Only trigger when index.html changes
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .  # publish the root directory (or specify build directory)
+          publish_branch: gh-pages  # optional: use a separate branch for pages
+          # If you want to deploy to the default GitHub Pages branch (usually 'gh-pages').
+
+      - name: Save deployment status
+        if: success()
+        run: echo "Deployment successful!"
