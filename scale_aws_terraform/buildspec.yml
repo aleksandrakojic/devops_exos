@@ -1,0 +1,17 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18 # Or other runtime needed for your app
+    commands:
+      - echo "Installing dependencies..."
+      - npm install # Or 'pip install', 'composer install', etc.
+  build:
+    commands:
+      - echo "Building the application..."
+      - npm run build # Or 'mvn package', 'go build', etc.
+      - echo "Build complete!"
+artifacts:
+  files:
+    - '**/*' # Package everything into the artifact. Adjust based on your needs.
+  discard-paths: no
