@@ -11,7 +11,7 @@ provider "aws" {
 }
 # --- VPC Definition ---
 resource "aws_vpc" "main" {
-  cidr_block = var.vpc_cidr_block
+  cidr_block           = var.vpc_cidr_block
   enable_dns_hostnames = true # Important for ALB and other services
   enable_dns_support   = true # Also important for DNS resolution within VPC
   tags = {
@@ -23,11 +23,11 @@ resource "aws_subnet" "public" {
   # The 'count' meta-argument allows us to create multiple identical resources
   # based on a list. Here, we're creating one public subnet for each CIDR
   # defined in var.public_subnet_cidrs.
-  count             = length(var.public_subnet_cidrs)
-  vpc_id            = aws_vpc.main.id # Reference the VPC we just created
-  cidr_block        = var.public_subnet_cidrs[count.index] # Get CIDR from list
-  availability_zone = var.availability_zones[count.index] # Get AZ from list
-  map_public_ip_on_launch = true # Instances in this subnet will get a public IP
+  count                   = length(var.public_subnet_cidrs)
+  vpc_id                  = aws_vpc.main.id                      # Reference the VPC we just created
+  cidr_block              = var.public_subnet_cidrs[count.index] # Get CIDR from list
+  availability_zone       = var.availability_zones[count.index]  # Get AZ from list
+  map_public_ip_on_launch = true                                 # Instances in this subnet will get a public IP
   tags = {
     Name = "${var.vpc_name}-public-subnet-${count.index + 1}"
   }
@@ -55,7 +55,7 @@ resource "aws_route_table" "public" {
 resource "aws_route_table_association" "public" {
   count          = length(var.public_subnet_cidrs)
   subnet_id      = aws_subnet.public[count.index].id # Reference each public subnet
-  route_table_id = aws_route_table.public.id # Reference the public route table
+  route_table_id = aws_route_table.public.id         # Reference the public route table
 }
 
 resource "aws_instance" "web_server" {
@@ -63,7 +63,7 @@ resource "aws_instance" "web_server" {
   instance_type = var.instance_type
   key_name      = var.instance_key_name
   subnet_id     = aws_subnet.public[0].id # Place it in the first public subnet
-  
+
   vpc_security_group_ids = [aws_security_group.allow_ssh.id, aws_security_group.allow_http.id]
 
   user_data = <<-EOF
@@ -207,8 +207,8 @@ resource "aws_lb" "main" {
   internal           = false # This is an internet-facing ALB
   load_balancer_type = "application"
   # Place ALB in our public subnets for internet access
-  subnets            = [for s in aws_subnet.public : s.id] # A neat trick to get all public subnet IDs
-  security_groups    = [aws_security_group.alb.id] # Attach the ALB's own security group
+  subnets         = [for s in aws_subnet.public : s.id] # A neat trick to get all public subnet IDs
+  security_groups = [aws_security_group.alb.id]         # Attach the ALB's own security group
   tags = {
     Name = "${var.vpc_name}-alb"
   }
@@ -251,18 +251,18 @@ resource "aws_launch_template" "web_app" {
 }
 
 resource "aws_autoscaling_group" "web_app" {
-  name                      = "${var.vpc_name}-web-app-asg"
-  desired_capacity          = var.asg_desired_capacity
-  max_size                  = var.asg_max_size
-  min_size                  = var.asg_min_size
-  health_check_type         = "ELB" # ASG uses ALB's health checks
-  vpc_zone_identifier       = [for s in aws_subnet.public : s.id] # ASG deploys into these subnets
+  name                = "${var.vpc_name}-web-app-asg"
+  desired_capacity    = var.asg_desired_capacity
+  max_size            = var.asg_max_size
+  min_size            = var.asg_min_size
+  health_check_type   = "ELB"                               # ASG uses ALB's health checks
+  vpc_zone_identifier = [for s in aws_subnet.public : s.id] # ASG deploys into these subnets
   launch_template {
     id      = aws_launch_template.web_app.id
     version = "$Latest" # Always use the latest version of the launch template
   }
   target_group_arns = [aws_lb_target_group.web_app.arn] # Attach ASG to our target group
-  tags = [ # Tags for ASG itself AND instances launched by ASG
+  tags = [                                              # Tags for ASG itself AND instances launched by ASG
     {
       key                 = "Name"
       value               = "${var.vpc_name}-web-app-asg-instance"
@@ -279,12 +279,12 @@ resource "aws_route53_zone" "main_public" {
 resource "aws_route53_record" "web_app_alias" {
   zone_id = aws_route53_zone.main_public.zone_id # Reference the hosted zone ID
   # If using data source: zone_id = data.aws_route53_zone.selected.zone_id
-  name    = "${var.subdomain_name}.${var.domain_name}" # e.g., www.yourdomain.com
-  type    = "A" # "A" record maps a domain to an IPv4 address (or an Alias target)
+  name = "${var.subdomain_name}.${var.domain_name}" # e.g., www.yourdomain.com
+  type = "A"                                        # "A" record maps a domain to an IPv4 address (or an Alias target)
   alias {
-    name                   = aws_lb.main.dns_name       # The ALB's DNS name
-    zone_id                = aws_lb.main.zone_id        # The ALB's Hosted Zone ID
-    evaluate_target_health = true # Recommended: Route 53 considers target health
+    name                   = aws_lb.main.dns_name # The ALB's DNS name
+    zone_id                = aws_lb.main.zone_id  # The ALB's Hosted Zone ID
+    evaluate_target_health = true                 # Recommended: Route 53 considers target health
   }
   tags = {
     Name = "${var.subdomain_name}.${var.domain_name}-alias"
@@ -336,8 +336,8 @@ resource "aws_iam_role" "codepipeline_role" {
   })
 }
 resource "aws_iam_role_policy" "codepipeline_policy" {
-  name   = "${var.vpc_name}-codepipeline-policy"
-  role   = aws_iam_role.codepipeline_role.id
+  name = "${var.vpc_name}-codepipeline-policy"
+  role = aws_iam_role.codepipeline_role.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -349,7 +349,7 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "s3:PutObjectAcl",
           "s3:PutObject"
         ],
-        Effect   = "Allow",
+        Effect = "Allow",
         Resource = [
           aws_s3_bucket.codepipeline_artifacts.arn,
           "${aws_s3_bucket.codepipeline_artifacts.arn}/*"
@@ -391,7 +391,7 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         Action = [
           "secretsmanager:GetSecretValue"
         ],
-        Effect = "Allow",
+        Effect   = "Allow",
         Resource = "*" # Restrict to specific secret ARN for production
       }
     ]
@@ -414,8 +414,8 @@ resource "aws_iam_role" "codebuild_role" {
   })
 }
 resource "aws_iam_role_policy" "codebuild_policy" {
-  name   = "${var.vpc_name}-codebuild-policy"
-  role   = aws_iam_role.codebuild_role.id
+  name = "${var.vpc_name}-codebuild-policy"
+  role = aws_iam_role.codebuild_role.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -434,7 +434,7 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "s3:GetObjectVersion",
           "s3:PutObject"
         ],
-        Effect   = "Allow",
+        Effect = "Allow",
         Resource = [
           aws_s3_bucket.codepipeline_artifacts.arn,
           "${aws_s3_bucket.codepipeline_artifacts.arn}/*"
@@ -460,8 +460,8 @@ resource "aws_iam_role" "codedeploy_role" {
   })
 }
 resource "aws_iam_role_policy" "codedeploy_policy" {
-  name   = "${var.vpc_name}-codedeploy-policy"
-  role   = aws_iam_role.codedeploy_role.id
+  name = "${var.vpc_name}-codedeploy-policy"
+  role = aws_iam_role.codedeploy_role.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -498,7 +498,7 @@ resource "aws_iam_role_policy" "codedeploy_policy" {
           "s3:GetBucketVersioning",
           "s3:PutObject" # For S3 deployment types
         ],
-        Effect   = "Allow",
+        Effect = "Allow",
         Resource = [
           aws_s3_bucket.codepipeline_artifacts.arn,
           "${aws_s3_bucket.codepipeline_artifacts.arn}/*"
@@ -512,7 +512,7 @@ resource "aws_codedeploy_app" "web_app" {
   name = "${var.vpc_name}-codedeploy-app"
 }
 resource "aws_codedeploy_deployment_group" "web_app" {
-  application_name = aws_codedeploy_app.web_app.name
+  application_name      = aws_codedeploy_app.web_app.name
   deployment_group_name = "${var.vpc_name}-codedeploy-dg"
   service_role_arn      = aws_iam_role.codedeploy_role.arn
   ec2_tag_set {
@@ -526,7 +526,7 @@ resource "aws_codedeploy_deployment_group" "web_app" {
   autoscaling_groups = [aws_autoscaling_group.web_app.name]
   deployment_style {
     deployment_option = "WITH_TRAFFIC_CONTROL" # Recommended for ASG
-    deployment_type   = "IN_PLACE" # Or BLUE_GREEN
+    deployment_type   = "IN_PLACE"             # Or BLUE_GREEN
   }
   # For traffic control (e.g., during Blue/Green or with_traffic_control)
   load_balancer_info {
@@ -551,8 +551,8 @@ resource "aws_codebuild_project" "web_app" {
     image_pull_credentials_type = "CODEBUILD"
   }
   source {
-    type            = "CODEPIPELINE" # Input source from CodePipeline
-    buildspec       = "buildspec.yml" # Your application's buildspec file
+    type      = "CODEPIPELINE"  # Input source from CodePipeline
+    buildspec = "buildspec.yml" # Your application's buildspec file
   }
   logs_config {
     cloudwatch_logs {
@@ -593,13 +593,13 @@ resource "aws_codepipeline" "web_app" {
   stage {
     name = "Build"
     action {
-      name            = "Build"
-      category        = "Build"
-      owner           = "AWS"
-      provider        = "CodeBuild"
-      input_artifacts = ["SourceArtifact"]
+      name             = "Build"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      input_artifacts  = ["SourceArtifact"]
       output_artifacts = ["BuildArtifact"]
-      version         = "1"
+      version          = "1"
       configuration = {
         ProjectName = aws_codebuild_project.web_app.name
       }
