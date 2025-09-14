@@ -1,0 +1,47 @@
+---
+- name: Set Up Your Workstation
+  hosts: all
+  become: true
+
+  vars:
+    users_to_create:
+      - Developer #1  
+      - Developer #2
+    packages_to_install:
+      - git
+      - curl
+      - htop
+    motd_message: |
+      Welcome to your server!
+      Managed by Ansible
+    desired_hostname: myserver
+    timezone: UTC
+
+  tasks:
+    - name: Create user accounts
+      user:
+        name: "{{ item }}"
+        state: present
+        shell: /bin/bash
+      loop: "{{ users_to_create }}"
+
+    - name: Install software packages
+      apt:
+        name: "{{ packages_to_install }}"
+        state: present
+
+    - name: Set Message of the Day
+      copy:
+        dest: /etc/motd
+        content: "{{ motd_message }}"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Set server hostname
+      hostname:
+        name: "{{ desired_hostname }}"
+
+    - name: Set timezone to UTC
+      timezone:
+        name: "{{ timezone }}"

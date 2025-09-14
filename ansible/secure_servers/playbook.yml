@@ -1,0 +1,16 @@
+---
+- name: Update packages on Ubuntu and RHELS
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update packages on Debian-based systems
+      apt:
+        update_cache: yes
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+
+    - name: Update packages on Red Hat-based systems
+      yum:
+        name: '*'
+        state: latest
+      when: ansible_os_family == "RedHat"
